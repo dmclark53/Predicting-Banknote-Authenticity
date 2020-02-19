@@ -36,7 +36,7 @@ def stack_dataframe(df, column_list):
     return df_stacked
 
 
-def create_boxplots(df, column_list, max_boxes=None, log_scale=False):
+def create_boxplots(df, column_list, max_boxes=None, log_scale=False, filename=None):
 
     offset_dict = {}
 
@@ -60,6 +60,8 @@ def create_boxplots(df, column_list, max_boxes=None, log_scale=False):
                     ax.set_yscale('log')
                     ax.set_ylabel('log (value)')
                 plt.show()
+                if filename:
+                    f.savefig(f'./images/{filename}.png')
             if remainder_boxes > 0:
                 df_stacked = stack_dataframe(df, column_list[i + max_boxes:])
                 f, ax = plt.subplots(figsize=(14, 6))
@@ -68,6 +70,8 @@ def create_boxplots(df, column_list, max_boxes=None, log_scale=False):
                     ax.set_yscale('log')
                     ax.set_ylabel('log (value)')
                 plt.show()
+                if filename:
+                    f.savefig(f'./images/{filename}.png')
         else:
             df_stacked = stack_dataframe(df, column_list)
             f, ax = plt.subplots(figsize=(14, 6))
@@ -76,6 +80,8 @@ def create_boxplots(df, column_list, max_boxes=None, log_scale=False):
                 ax.set_yscale('log')
                 ax.set_ylabel('log (value)')
             plt.show()
+            if filename:
+                f.savefig(f'./images/{filename}.png')
     else:
         f, ax = plt.subplots(figsize=(14, 6))
         sns.boxplot(y=column_list[0], data=df)
@@ -83,6 +89,8 @@ def create_boxplots(df, column_list, max_boxes=None, log_scale=False):
             ax.set_yscale('log')
             ax.set_ylabel('log (value)')
         plt.show()
+        if filename:
+            f.savefig(f'./images/{filename}.png')
 
     if log_scale:
         for column in column_list:
@@ -166,12 +174,14 @@ def perform_pca(df, features, num_components):
         features.append(f'pca_{component}')
 
 
-def ttest_feature(df, feature):
+def ttest_feature(df, feature, filename=None):
     grouped = df.loc[:, [feature, 'class']].groupby('class')
     for label, group in grouped:
         sns.kdeplot(group[feature].values, label=f'{label}')
     plt.legend()
     plt.title(f'Feature: {feature}')
+    if filename:
+        plt.savefig(f'./images/{filename}')
     plt.show()
 
     class_0 = df.loc[df['class'] == 0.0, feature]
@@ -186,17 +196,17 @@ def ttest_feature(df, feature):
 Modeling
 '''
 
-def fit_kmeans(X, y, num_clusters, evaluate_model=False):
+def fit_kmeans(X, y, num_clusters, evaluate_model=False, filename=None):
     # X = X.values.reshape(-1, 1)
     y_pred = KMeans(n_clusters=num_clusters, random_state=42).fit_predict(X)
     if evaluate_model:
-        display_clusters(X, y_pred, 'K-Means')
+        display_clusters(X, y_pred, 'K-Means', filename=filename)
         compute_crosstab(y, y_pred)
         ari = metrics.adjusted_rand_score(y, y_pred)
         print(f'ARI: {ari:0.3f}')
 
 
-def fit_mean_shift(X, y, evaluate_model=False):
+def fit_mean_shift(X, y, evaluate_model=False, filename=None):
     # X = X.values.reshape(-1, 1)
     bandwidth = estimate_bandwidth(X, quantile=0.2, n_samples=500)
     ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
@@ -205,14 +215,14 @@ def fit_mean_shift(X, y, evaluate_model=False):
     cluster_centers = ms.cluster_centers_
     n_clusters_ = len(np.unique(y_pred))
     if evaluate_model:
-        display_clusters(X, y_pred, 'Mean Shift')
+        display_clusters(X, y_pred, 'Mean Shift', filename=filename)
         print(f'There are {n_clusters_} estimated clusters.')
         compute_crosstab(y, y_pred)
         ari = metrics.adjusted_rand_score(y, y_pred)
         print(f'ARI: {ari:0.3f}')
 
 
-def fit_spectral_clustering(X, y, num_clusters, evaluate_model=False):
+def fit_spectral_clustering(X, y, num_clusters, evaluate_model=False, filename=None):
     # X = X.values.reshape(-1, 1)
     sc = SpectralClustering(n_clusters=num_clusters,
                             eigen_solver='arpack',
@@ -224,13 +234,13 @@ def fit_spectral_clustering(X, y, num_clusters, evaluate_model=False):
     sc.fit(X)
     y_pred=sc.fit_predict(X)
     if evaluate_model:
-        display_clusters(X, y_pred, 'Spectral Clustering')
+        display_clusters(X, y_pred, 'Spectral Clustering', filename=filename)
         compute_crosstab(y, y_pred)
         ari = metrics.adjusted_rand_score(y, y_pred)
         print(f'ARI: {ari:0.3f}')
 
 
-def fit_ward(X, y, num_clusters, evaluate_model=False):
+def fit_ward(X, y, num_clusters, evaluate_model=False, filename=None):
 
     # connectivity matrix for structured Ward
     connectivity = kneighbors_graph(
@@ -244,7 +254,7 @@ def fit_ward(X, y, num_clusters, evaluate_model=False):
     sc.fit(X)
     y_pred=sc.fit_predict(X)
     if evaluate_model:
-        display_clusters(X, y_pred, 'Ward')
+        display_clusters(X, y_pred, 'Ward', filename=filename)
         compute_crosstab(y, y_pred)
         ari = metrics.adjusted_rand_score(y, y_pred)
         print(f'ARI: {ari:0.3f}')
@@ -265,7 +275,7 @@ Model Evaluation
 '''
 
 
-def display_clusters(X, y, model_type):
+def display_clusters(X, y, model_type, filename=None):
     num_clusters = len(np.unique(y))
     df = X.copy()
     df['y_pred'] = y
@@ -273,6 +283,8 @@ def display_clusters(X, y, model_type):
     # columns = X.columns.tolist()
     # sns.scatterplot(x=columns[0], y=columns[1], hue='y_pred', data=df)
     # plt.title(f'{model_type}: Displaying {num_clusters} Clusters')
+    if filename:
+        plt.savefig(f'./images/{filename}.png')
     plt.show()
 
 
